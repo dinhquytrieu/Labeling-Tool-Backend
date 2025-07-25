@@ -16,8 +16,6 @@ export class AnnotateService {
       throw new Error('Invalid image format. Please provide a valid base64 image.');
     }
 
-    // console.log('OpenAI API key:', this.openai);
-
     if (!this.openai) {
       // Return mock data if no API key
       return {
@@ -30,34 +28,42 @@ export class AnnotateService {
     }
 
     console.log('ready for openai');
-    // Call OpenAI Vision API (GPT-4o or GPT-4V)
+    
+    // Extract just the base64 part from the data URL
+    // imageBase64 format: "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+    // We need just the base64 part after the comma
+    const base64Match = imageBase64.match(/^data:image\/[a-zA-Z]+;base64,(.+)$/);
+    if (!base64Match) {
+      throw new Error('Invalid base64 image format');
+    }
+    const pureBase64 = base64Match[1];
+    
+    // Determine image type from the data URL
+    const imageTypeMatch = imageBase64.match(/^data:image\/([a-zA-Z]+);base64,/);
+    const imageType = imageTypeMatch ? imageTypeMatch[1] : 'jpeg';
+    
+    // Format the image URL as shown in the reference code
+    const formattedImageUrl = `data:image/${imageType};base64,${pureBase64}`;
+
+    // Call OpenAI API using the correct structure from the reference code
     try {
-      const prompt = `You are a UI annotation assistant. Given an image of a UI, return a JSON array of bounding boxes and tags for each UI component. Use this schema:\n{\n  \"annotations\": [\n    { \"x\": <number>, \"y\": <number>, \"width\": <number>, \"height\": <number>, \"tag\": \"Button|Input|Radio|Dropdown\" }\n  ]\n}\nOnly return valid JSON.`;
+      const prompt = `You are a UI annotation assistant. Given an image of a UI, return a JSON array of bounding boxes and tags for each UI component. Use this schema:\n{\n  "annotations": [\n    { "x": <number>, "y": <number>, "width": <number>, "height": <number>, "tag": "Button|Input|Radio|Dropdown" }\n  ]\n}\nOnly return valid JSON.`;
+      
       const response = await this.openai.responses.create({
         model: 'gpt-4.1',
         input: [
-          { role: 'system', content: prompt },
           {
             role: 'user',
             content: [
-              { type: 'input_text', text: 'Analyze this UI image and return bounding boxes for UI components.' },
-              { type: 'input_image', image_url: imageBase64, detail: 'high' },
+              { type: 'input_text', text: 'You are a UI annotation assistant. Given an image of a UI, return a JSON array of bounding boxes and tags for each UI component. Use this schema:\n{\n  "annotations": [\n    { "x": <number>, "y": <number>, "width": <number>, "height": <number>, "tag": "Button|Input|Radio|Dropdown" }\n  ]\n}\nOnly return valid JSON.' },
+              {
+                type: 'input_image',
+                image_url: formattedImageUrl,
+                detail: 'high',
+              },
             ],
           },
         ],
-        // model: 'gpt-4o',
-        // input: [
-        //   { role: 'system', content: prompt },
-        //   {
-        //     role: 'user',
-        //     content: [
-        //       { type: 'text', text: 'Analyze this UI image and return bounding boxes for UI components.' },
-        //       { type: 'image_url', image_url: { url: imageBase64 } },
-        //     ],
-        //   },
-        // ],
-        // max_tokens: 1024,
-        // temperature: 0.2,
       });
 
       console.log('Response:', response);
