@@ -19,8 +19,6 @@ export class AnnotateService {
       throw new Error('Invalid image format. Please provide a valid base64 image or URL.');
     }
 
-    // console.log('OpenAI API key:', this.openai);
-
     if (!this.openai) {
       // Return mock data if no API key
       return {
@@ -33,7 +31,24 @@ export class AnnotateService {
     }
 
     console.log('ready for openai');
-    // Call OpenAI Vision API (GPT-4o or GPT-4V)
+    
+    // Extract just the base64 part from the data URL
+    // imageBase64 format: "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+    // We need just the base64 part after the comma
+    const base64Match = imageBase64.match(/^data:image\/[a-zA-Z]+;base64,(.+)$/);
+    if (!base64Match) {
+      throw new Error('Invalid base64 image format');
+    }
+    const pureBase64 = base64Match[1];
+    
+    // Determine image type from the data URL
+    const imageTypeMatch = imageBase64.match(/^data:image\/([a-zA-Z]+);base64,/);
+    const imageType = imageTypeMatch ? imageTypeMatch[1] : 'jpeg';
+    
+    // Format the image URL as shown in the reference code
+    const formattedImageUrl = `data:image/${imageType};base64,${pureBase64}`;
+
+    // Call OpenAI API using the correct structure from the reference code
     try {
       const prompt = 
         `You are a UI annotation assistant. Given an image of a user interface (UI), analyze the image and identify up to 10 distinct UI components. For each component, return a bounding box and a tag describing its type. Use only these tags: Button, Input, Radio, Dropdown. For each annotation, provide the top-left x and y coordinates, width, height, and the tag. Return the result as a JSON object with this schema:
@@ -80,19 +95,6 @@ export class AnnotateService {
             ],
           },
         ],
-        // model: 'gpt-4o',
-        // input: [
-        //   { role: 'system', content: prompt },
-        //   {
-        //     role: 'user',
-        //     content: [
-        //       { type: 'text', text: 'Analyze this UI image and return bounding boxes for UI components.' },
-        //       { type: 'image_url', image_url: { url: imageBase64 } },
-        //     ],
-        //   },
-        // ],
-        // max_tokens: 1024,
-        // temperature: 0.2,
       });
 
       console.log('Response:', response);
